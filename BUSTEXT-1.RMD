@@ -10,7 +10,8 @@ R contains a package named `jsonlite` that optimizes reading in json urls as lis
 # library(jsonlite) ## to extract data 
 # library(curl) ## in order to download links from online servers
 # library(pdftools) ## used to convert pdf files to text in prep for analysis
-# library(scholar) ## used to search by specific author/scholar  
+# library(scholar) ## used to search by specific author/scholar 
+# library(readxl) ## used to read in excel files 
 # 
 # ## user input ##
 # ## this was a different way of pullin the doi list from a web server and is no longer required ##
@@ -113,11 +114,14 @@ for(i in 1:nrow(doi.list))
 ```
 
 
-Adding Citations to dataframe 
+Adding Citations to dataframe - need to create conditional matching and ignore / subset the data frame to not include missing DOIs from cite.counts frame 
 ```{r}
 library(readxl)
+library(dplyr)
 ## Number 4 on list of to do merges dataframes where not all observations stay goes from 956 to 691
 cite.counts <- read_excel("C:/Temp/Journal of Marketing Database.xlsx")
+cite.counts %>%
+  filter(is.na(DOI) == F)
 
 ## can drop certain columns since they dont all match up and are not neccessary 
 final.df <- merge(cite.counts, wordcount.dataframe, by.y = "match", by.x= "DOI..3")
