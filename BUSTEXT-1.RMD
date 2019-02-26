@@ -1,0 +1,125 @@
+---
+title: "BUS Text Analysis"
+---
+
+### Pulling data from JSON format *no longer needed 
+R contains a package named `jsonlite` that optimizes reading in json urls as lists. 
+
+```{r}
+# ## required packages in order to perform script(s) below
+# library(jsonlite) ## to extract data 
+# library(curl) ## in order to download links from online servers
+# library(pdftools) ## used to convert pdf files to text in prep for analysis
+# library(scholar) ## used to search by specific author/scholar  
+# 
+# ## user input ##
+# ## this was a different way of pullin the doi list from a web server and is no longer required ##
+# data <-
+#   fromJSON('http://api.crossref.org/journals/00222429/works?filter=from-pub-date:2000-01-01&select=DOI&rows=1000')
+# 
+# ## if the destination is already created on computer
+# dest <- "C:/Temp/BusTextAnalysis" 
+
+## if want to create new destination on computer to save files
+## when creating a function this would be two seperate options, but use the working directory as a base may need to use ## if else statements in order to determine which dest / which loop to use based on user input
+## current issue is that here dest is a boolean vector and cannot be called in the loop
+# dest <- dir.create("C:/Temp/BusTextAnalysis")
+```
+
+The first four rows of the data are not doi's so they are removed from the data frame.
+update (02/11/19) code below is no longer needed as we are pulling data from excel list of doi(s)
+
+```{r}
+# df <- data.frame(matrix(unlist(data), nrow = 1006, byrow = T))
+# new_df <- as.data.frame(df[-c(1,2,3,4),]) ## remove first four observations that are just descriptors not neccessary inforomation
+# colnames(new_df) <- "doi"
+# str(new_df)
+```
+
+Then we pasted the different urls for the xlm, pdf, and landing pages and added them to the doi's url in order to create a full data table. 
+
+```{r}
+# new_df$xlm <- 
+#   paste("http://journals.sagepub.com/doi/full-xml/", new_df$doi, sep = "")
+# new_df$pdf <- 
+#   paste("https://journals.sagepub.com/doi/pdf/", new_df$doi, sep = "")
+# new_df$land <- 
+#   paste("https://journals.sagepub.com/doi/", new_df$doi, sep = "")
+# 
+# head(new_df)
+# link10 <- head(new_df, 10)
+```
+
+
+```{r}
+# for(i in 1:nrow(links)) 
+# {
+#   http <- new_df$pdf[i]
+#   file_name <- paste("bustext", i, ".pdf", sep = "")
+#   download.file(url = http, file_name , mode = "wb")
+#   text <- pdf_text(file_name)
+#   # no longer need to write to file on device 
+#   # write.table(text, paste(dest,"/bustext", i, ".txt", sep = "")) 
+#   Sys.sleep(3) #this is just in case the IP attempts to kick off 
+# }
+```
+
+
+
+### dataframe of counts, and citations updated 02/20
+
+```{r}
+## necessary packages
+library(readxl)
+library(stringr)
+library(pdftools)
+library(tidyverse)
+
+## read in excel files required 
+content.list <- read_excel("C:/Temp/content.xlsx")
+doi.list <- read.csv("C:/Temp/working_links.csv", stringsAsFactors = F)
+## i do not know why this is requiring a NA in the syntax for into =, but without it does not perform the task correctly can look back into later 
+doi.list <- separate(data = doi.list, col = DOI, into = c("match","raw.doi"), 
+                     sep = "https://journals.sagepub.com/doi/pdf/", remove = F)
+doi.list$match <- paste("https://doi.org/", doi.list$raw.doi, sep = "")
+## smaller first 10 obs of doi list for testing 
+sm.doi.list <- head(doi.list, 10)
+
+## creates number of columns defined as the number of rows in content list
+cites.list <- data.frame(matrix(nrow = nrow(doi.list), ncol = nrow(content.list)))
+
+## changes the names to "count[i]" to keep track of names
+names(cites.list) <- c(paste0("count", 1:nrow(content.list))) 
+
+## loops
+for(i in 1:nrow(doi.list))
+{
+  pdf.url <- doi.list$DOI[i]
+  ## retrieves the raw text from the pdf format online
+  text.file <- pdf_text(pdf.url)
+    ## runs inner loop for each text file 
+    for(j in 1:nrow(content.list)){
+      ## this will only match the specific phrase 
+      ## calls article then runs through every phrase before moving to next article       ## populating the cites.list datta frame 
+      cites.list[i,j] <- length(grep(content.list$phrase[j], text.file)) 
+    }
+  # rbind(doi.list, data.frame(phrase.count[j]))
+  # to avoid getting timed out
+  Sys.sleep(3)
+  
+  ## binds the two data frames into one and creates full data frame neccessary 
+  wordcount.dataframe <- cbind(doi.list, cites.list)
+}
+```
+
+
+Adding Citations to dataframe 
+```{r}
+library(readxl)
+## Number 4 on list of to do merges dataframes where not all observations stay goes from 956 to 691
+cite.counts <- read_excel("C:/Temp/Journal of Marketing Database.xlsx")
+
+## can drop certain columns since they dont all match up and are not neccessary 
+final.df <- merge(cite.counts, wordcount.dataframe, by.y = "match", by.x= "DOI..3")
+```
+
